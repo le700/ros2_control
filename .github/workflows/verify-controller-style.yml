@@ -36,6 +36,7 @@ jobs:
         env:
           EXPECTED_SHA: ${{ matrix.sha }}
         run: |
+          git config --global --add safe.directory "$PWD"
           test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
           source /tmp/pr-check-venv/bin/activate
           source /opt/ros/rolling/setup.bash
