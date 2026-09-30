@@ -1,0 +1,39 @@
+name: Verify controller PR source revisions
+on:
+  push:
+    branches: [verify-controller-prs]
+permissions:
+  contents: read
+jobs:
+  build-test:
+    name: PR ${{ matrix.pr }} rolling build and tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        include:
+          - pr: 3645
+            sha: cf139edd3227a0cab21cf7f1aa860acfdcd057d3
+          - pr: 3654
+            sha: 27b582b195074ba7332a2a7389532dd8e7849b06
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.sha }}
+          persist-credentials: false
+      - name: Verify exact PR source
+        env:
+          EXPECTED_SHA: ${{ matrix.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - name: Build and test with upstream industrial_ci configuration
+        uses: ros-industrial/industrial_ci@master
+        env:
+          ROS_DISTRO: rolling
+          ROS_REPO: testing
+          OS_CODE_NAME: resolute
+          DOCKER_IMAGE: ghcr.io/ros-controls/ros:rolling-ubuntu-testing
+          UPSTREAM_WORKSPACE: ros2_control.rolling.repos
+          RMW_IMPLEMENTATION: rmw_cyclonedds_cpp
+          CMAKE_ARGS: -DROS2_CONTROL_STRICT_TIMING_TESTS=OFF
