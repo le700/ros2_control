@@ -1,0 +1,42 @@
+name: Verify controller PR pre-commit gates
+on:
+  push:
+    branches: [verify-controller-style]
+permissions:
+  contents: read
+jobs:
+  pre-commit:
+    name: PR ${{ matrix.pr }} full pre-commit
+    runs-on: ubuntu-24.04
+    container: ghcr.io/ros-controls/ros:rolling-ubuntu-testing
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        include:
+          - pr: 3645
+            sha: cf139edd3227a0cab21cf7f1aa860acfdcd057d3
+          - pr: 3654
+            sha: 27b582b195074ba7332a2a7389532dd8e7849b06
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.sha }}
+          persist-credentials: false
+      - name: Install upstream system hooks and pre-commit
+        shell: bash
+        run: |
+          apt-get update
+          apt-get install -y python3-venv ros-rolling-ament-cppcheck ros-rolling-ament-cpplint ros-rolling-ament-lint-cmake ros-rolling-ament-copyright
+          python3 -m venv /tmp/pr-check-venv
+          /tmp/pr-check-venv/bin/python -m pip install pre-commit
+      - name: Run all upstream pre-commit hooks on exact PR source
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ matrix.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          source /tmp/pr-check-venv/bin/activate
+          source /opt/ros/rolling/setup.bash
+          pre-commit run --show-diff-on-failure --color=always --all-files --hook-stage manual
